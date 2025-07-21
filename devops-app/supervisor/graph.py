@@ -6,6 +6,7 @@ from utils.system_prompts import SUPERVISIOR_AGENT_SYSTEM_PROMPT
 from langgraph_supervisor import create_supervisor 
 from typing import TypedDict, Annotated, List
 from langchain_core.messages import BaseMessage
+import os
 import operator
 
 class AgentState(TypedDict):
@@ -15,6 +16,12 @@ class AgentState(TypedDict):
     remaining_steps: int
 
 async def create_graph():
+    # Define and create the workspace directory relative to this file's location
+    # This ensures a consistent path regardless of where the script is run from.
+    current_dir = os.path.dirname(os.path.abspath(__file__))
+    workspace_dir = os.path.join(current_dir, '..', 'workspace')
+    os.makedirs(workspace_dir, exist_ok=True)
+
     # 1. Fetch MCP tools
     core_tools = await MultiServerMCPClient({"core_mcp": {"transport":"sse","url":"http://localhost:8000/sse"}}).get_tools()
     diag_tools = await MultiServerMCPClient({"diagram_mcp": {"transport":"sse","url":"http://localhost:8001/sse"}}).get_tools()
@@ -22,8 +29,8 @@ async def create_graph():
 
     # 2. Build agent functions
     planning_agent  = planning_agent_factory(core_tools)
-    diagram_agent   = diagram_agent_factory(diag_tools)
-    terraform_agent = terraform_agent_factory(tf_tools)
+    diagram_agent   = diagram_agent_factory(diag_tools, project_root=workspace_dir)
+    terraform_agent = terraform_agent_factory(tf_tools, project_root=workspace_dir)
     # Supervisor: use prebuilt react too
     supervisor_agent = create_supervisor(
         agents=[planning_agent,diagram_agent,terraform_agent],

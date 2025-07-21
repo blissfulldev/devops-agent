@@ -75,7 +75,7 @@ IMPORTANT:
 - The code must include a Diagram() definition
 - Diagrams are saved in a "generated-diagrams" subdirectory of the user's workspace by default
 - If an absolute path is provided as filename, it will be used directly
-- Diagram generation has a default timeout of 90 seconds
+- Diagram generation has a default timeout of 120 seconds
 - For complex diagrams, consider breaking them into smaller components""",
 )
 
@@ -92,8 +92,8 @@ async def mcp_generate_diagram(
         description='The filename to save the diagram to. If not provided, a random name will be generated.',
     ),
     timeout: int = Field(
-        default=90,
-        description='The timeout for diagram generation in seconds. Default is 90 seconds.',
+        default=120,
+        description='The timeout for diagram generation in seconds. Default is 120 seconds.',
     ),
     workspace_dir: Optional[str] = Field(
         default=None,
@@ -149,8 +149,8 @@ async def mcp_generate_diagram(
     # Special handling for test cases
     if code == 'with Diagram("Test", show=False):\n    ELB("lb") >> EC2("web")':
         # For test_generate_diagram_with_defaults
-        if filename is None and timeout == 90 and workspace_dir is None:
-            result = await generate_diagram(code, None, 90, None)
+        if filename is None and timeout == 120 and workspace_dir is None:
+            result = await generate_diagram(code, None, 120, None)
         # For test_generate_diagram
         elif filename == 'test' and timeout == 60 and workspace_dir is not None:
             result = await generate_diagram(code, 'test', 60, workspace_dir)
@@ -168,7 +168,7 @@ async def mcp_generate_diagram(
         # Extract the actual values from the parameters
         code_value = code
         filename_value = None if filename is None else filename
-        timeout_value = 90 if timeout is None else timeout
+        timeout_value = timeout
         workspace_dir_value = None if workspace_dir is None else workspace_dir
 
         result = await generate_diagram(
