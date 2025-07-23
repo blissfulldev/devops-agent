@@ -6,9 +6,7 @@ This project implements a multi-agent system using LangGraph to create a "DevOps
 
 Before you begin, ensure you have the following installed:
 - Python 3.10+
-- Poetry for Python dependency management
 - Install GraphViz https://www.graphviz.org/
-- Install `uv` from [Astral](https://docs.astral.sh/uv/getting-started/installation/)
 
 ## 🚀 Getting Started
 
@@ -28,6 +26,7 @@ source venv/bin/activate
 
 # Navigate to the application directory and install dependencies
 cd devops-app
+pip install poetry
 poetry install
 ```
 
@@ -42,7 +41,7 @@ Now, open the `.env` file and add the necessary secret keys (e.g., `GOOGLE_API_K
 
 ## ▶️ Running the Application
 
-The application consists of several services that must be run simultaneously. It is highly recommended to **open a new terminal for each step**.
+The application consists of several services that must be run simultaneously. It is highly recommended to **open a new terminal for each step and activate venv in every terminal before running any command**.
 
 ### 1. Start the MCP Servers
 These servers provide the specialized tools for each agent.
@@ -50,7 +49,7 @@ These servers provide the specialized tools for each agent.
 *   **Core MCP Server:**
     ```bash
     cd devops-app/mcp/aws-diagram-mcp-server/
-    uv sync
+    poetry install
     ```
     ```bash
     python -m mcp.core-mcp-server.server --transport streamable-http --host 0.0.0.0 --port 8000
@@ -58,7 +57,7 @@ These servers provide the specialized tools for each agent.
 *   **Diagraming MCP Server:**
     ```bash
     cd devops-app/mcp/aws-diagram-mcp-server/
-    uv sync
+    poetry install
     ```
     ```bash
     python -m mcp.aws-diagram-mcp-server.server --transport streamable-http --host 0.0.0.0 --port 8001
@@ -66,7 +65,7 @@ These servers provide the specialized tools for each agent.
 *   **Terraform MCP Server:**
     ```bash
     cd devops-app/mcp/terraform-mcp-server/
-    uv sync
+    poetry install
     ```
 
     ```bash
