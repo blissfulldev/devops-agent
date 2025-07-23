@@ -49,7 +49,7 @@ These servers provide the specialized tools for each agent.
 
 *   **Core MCP Server:**
     ```bash
-    cd devops-app/mcp/aws-diagram-mcp-server/
+    cd devops-app/mcp/core-mcp-server/
     uv sync
     ```
     ```bash
