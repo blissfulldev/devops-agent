@@ -6,9 +6,9 @@ This project implements a multi-agent system using LangGraph to create a "DevOps
 
 Before you begin, ensure you have the following installed:
 - Python 3.10+
-- Docker
 - Poetry for Python dependency management
-- Graphviz (for diagram generation)
+- Install GraphViz https://www.graphviz.org/
+- Install `uv` from [Astral](https://docs.astral.sh/uv/getting-started/installation/)
 
 ## 🚀 Getting Started
 
@@ -50,6 +50,7 @@ These servers provide the specialized tools for each agent.
 *   **Core MCP Server:**
     ```bash
     cd devops-app/mcp/aws-diagram-mcp-server/
+    uv sync
     ```
     ```bash
     python -m mcp.core-mcp-server.server --transport streamable-http --host 0.0.0.0 --port 8000
@@ -57,6 +58,7 @@ These servers provide the specialized tools for each agent.
 *   **Diagraming MCP Server:**
     ```bash
     cd devops-app/mcp/aws-diagram-mcp-server/
+    uv sync
     ```
     ```bash
     python -m mcp.aws-diagram-mcp-server.server --transport streamable-http --host 0.0.0.0 --port 8001
@@ -64,6 +66,7 @@ These servers provide the specialized tools for each agent.
 *   **Terraform MCP Server:**
     ```bash
     cd devops-app/mcp/terraform-mcp-server/
+    uv sync
     ```
 
     ```bash
