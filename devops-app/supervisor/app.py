@@ -23,25 +23,10 @@ if "checkpoint_id" not in st.session_state:
 
 # Render chat history from session state
 for role, msg in st.session_state.history:
-    st.chat_message(role).write(msg)
-
-
-def stream_generator(response):
-    """Generator to yield text chunks from the SSE response and build the full message."""
-    assistant_response = ""
-    for line in response.iter_lines():
-        if not line or not line.startswith("data:"):
-            continue
-        try:
-            chunk = json.loads(line.removeprefix("data: "))
-            text_chunk = chunk.get("text", "")
-            assistant_response += text_chunk
-            yield text_chunk
-        except json.JSONDecodeError:
-            continue  # Ignore invalid JSON chunks
-    # Once streaming is complete, add the final message to history
-    st.session_state.history.append(("assistant", assistant_response))
-
+    if role == "assistant_image":
+        st.chat_message("assistant").image(msg, caption="Generated Diagram")
+    else:
+        st.chat_message(role).write(msg)
 
 # 3) Use st.chat_input for a better user experience
 if prompt := st.chat_input("What would you like to build?"):
@@ -59,17 +44,53 @@ if prompt := st.chat_input("What would you like to build?"):
 
     # Display assistant response in a streaming fashion
     with st.chat_message("assistant"):
+        # Placeholders for streaming output
+        text_placeholder = st.empty()
+        image_placeholder = st.empty()
+        assistant_response_text = ""
+        final_image_url = None
+
         try:
             # 4) Call FastAPI SSE endpoint with an increased timeout
             with httpx.stream(
                 "POST",
                 "http://localhost:8080/stream",
                 json=payload,
-                timeout=120.0,  # Set a 120-second timeout
+                timeout=120.0,
             ) as response:
                 response.raise_for_status()  # Raise an exception for bad status codes
-                # Use st.write_stream to render the response as it comes in
-                st.write_stream(stream_generator(response))
+                
+                # Manually process the SSE stream
+                for line in response.iter_lines():
+                    if not line or not line.startswith("data:"):
+                        continue
+                    try:
+                        chunk = json.loads(line.removeprefix("data: "))
+                        print(f"Received chunk: {chunk}")
+
+                        # Handle text chunks for streaming response
+                        if text_chunk := chunk.get("text"):
+                            assistant_response_text += text_chunk
+                            text_placeholder.markdown(assistant_response_text + "▌")
+
+                        # Handle image URL to display the diagram
+                        if image_url := chunk.get("image_url"):
+                            # The server provides a relative path, we need the full URL
+                            final_image_url = f"http://localhost:8080{image_url}"
+                            image_placeholder.image(final_image_url, caption="Generated Diagram")
+
+                    except json.JSONDecodeError:
+                        continue
+            # Final update to remove the cursor and save to history
+            text_placeholder.markdown(assistant_response_text)
+            
+            # Save the final response to history
+            # We save text and image separately to render them correctly
+            if assistant_response_text:
+                st.session_state.history.append(("assistant", assistant_response_text))
+            if final_image_url:
+                st.session_state.history.append(("assistant_image", final_image_url))
+
         except httpx.ReadTimeout:
             st.error("The request timed out. The agent system is taking too long to respond.")
         except httpx.HTTPStatusError as e:

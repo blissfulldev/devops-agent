@@ -2,7 +2,7 @@ from langgraph.checkpoint.memory import MemorySaver
 from agents.shared_agent import llm
 from agents.shared_agent import planning_agent_factory, diagram_agent_factory, terraform_agent_factory
 from langchain_mcp_adapters.client import MultiServerMCPClient
-from utils.system_prompts import SUPERVISIOR_AGENT_SYSTEM_PROMPT
+from utils.system_prompts import SUPERVISOR_AGENT_SYSTEM_PROMPT
 from langgraph_supervisor import create_supervisor 
 from typing import TypedDict, Annotated, List
 from langchain_core.messages import BaseMessage
@@ -36,7 +36,7 @@ async def create_graph():
         agents=[planning_agent,diagram_agent,terraform_agent],
         model=llm,
         state_schema = AgentState,
-        prompt=SUPERVISIOR_AGENT_SYSTEM_PROMPT,
+        prompt=SUPERVISOR_AGENT_SYSTEM_PROMPT,
         add_handoff_back_messages=True,
         output_mode="full_history",
         ).compile(checkpointer=MemorySaver())

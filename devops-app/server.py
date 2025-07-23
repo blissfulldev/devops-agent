@@ -1,14 +1,23 @@
 import os, json
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 from supervisor.graph import create_graph
 from fastapi.responses import StreamingResponse
 import uuid
 import logging
-from langchain.schema import HumanMessage, BaseMessage
 
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger("server")
+
+# Define workspace path robustly
+# The server.py file is inside devops-app, and workspace is at the same level.
+# So we get the directory of the current file and join it with 'workspace'.
+SERVER_DIR = os.path.dirname(os.path.abspath(__file__))
+WORKSPACE_DIR = os.path.join(SERVER_DIR, "workspace")
+
+# Create workspace if it doesn't exist
+os.makedirs(WORKSPACE_DIR, exist_ok=True)
 
 app = FastAPI(
     title="DevOps Agent Server",
@@ -23,8 +32,6 @@ async def startup_event():
     global graph
     graph = await create_graph()
 
-    # add_fastapi_endpoint(app, sdk, "/copilotkit_remote", max_workers=10)
-
 # CORS
 app.add_middleware(
     CORSMiddleware,
@@ -33,6 +40,9 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Mount the workspace directory to serve generated files like diagrams
+app.mount("/static", StaticFiles(directory=WORKSPACE_DIR), name="static")
 
 @app.post("/stream")
 async def stream_endpoint(request: Request):
@@ -54,17 +64,55 @@ async def stream_endpoint(request: Request):
     config = {"configurable": {"thread_id": thread_id}}
 
     async def event_generator():
+        # Flag to identify when the diagram_agent is producing its final answer (the raw Python code)
+        # which should not be streamed to the UI.
+        is_diagram_agent_final_answer_pending = False
         try:
             # Use astream_events (v2) to get a stream of events from the graph
             async for event in graph.astream_events(graph_input, config=config, version="v2"):
-                # We are interested in the tokens streamed from the underlying chat model
+                # Log every event for debugging purposes
+                logger.debug(f"Event: {event['event']}, Name: {event.get('name')}, Data: {event.get('data')}")
+
+                # Stream LLM tokens for the "thinking" effect
                 if event["event"] == "on_chat_model_stream":
+                    # If this flag is set, we are in the diagram_agent's final answer stream.
+                    # We suppress this stream because it's the raw Python code intended for the next agent.
+                    if event.get("name") == "diagram_agent" and is_diagram_agent_final_answer_pending:
+                        continue  # Skip sending this chunk to the UI
+
                     chunk = event["data"].get("chunk")
                     if chunk and hasattr(chunk, 'content') and chunk.content:
-                        # The Streamlit client expects a JSON object with a "text" key
                         data_to_send = {"text": chunk.content}
-                        # Format as a Server-Sent Event (SSE) and send to the client
                         yield f"data: {json.dumps(data_to_send)}\n\n"
+                
+                # When the diagram tool finishes, send the image path to the client
+                if event["event"] == "on_tool_end" and event["name"] == "generate_diagram":
+                    # Set the flag to suppress the agent's next stream, which will be the raw code
+                    is_diagram_agent_final_answer_pending = True
+                    tool_output_str = event["data"].get("output")
+                    tool_output = {}
+                    if tool_output_str:
+                        try:
+                            tool_output = json.loads(tool_output_str)
+                        except (json.JSONDecodeError, TypeError):
+                            logger.warning(f"Could not parse tool output: {tool_output_str}")
+
+                    if tool_output.get("status") == "success":
+                        image_path = tool_output.get("path")
+                        if image_path and os.path.exists(image_path):
+                            # Convert the absolute filesystem path to a relative URL
+                            # that the client can use.
+                            # We already have the absolute path to workspace
+                            relative_path = os.path.relpath(image_path, WORKSPACE_DIR)
+                            image_url = f"/static/{relative_path.replace(os.sep, '/')}"
+                            
+                            data_to_send = {"image_url": image_url}
+                            yield f"data: {json.dumps(data_to_send)}\n\n"
+
+                            # Also send a user-friendly confirmation message to the UI
+                            confirmation_message = "\n\nDiagram generated successfully."
+                            data_to_send = {"text": confirmation_message}
+                            yield f"data: {json.dumps(data_to_send)}\n\n"
         except Exception as e:
             logger.exception("🔥 graph.astream_events failed")
             error_message = {"error": str(e)}
