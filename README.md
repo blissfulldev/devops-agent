@@ -8,6 +8,7 @@ Before you begin, ensure you have the following installed:
 - Python 3.10+
 - Docker
 - Poetry for Python dependency management
+- Graphviz (for diagram generation)
 
 ## 🚀 Getting Started
 
@@ -38,21 +39,6 @@ cp env.example .env
 ```
 Now, open the `.env` file and add the necessary secret keys (e.g., `GOOGLE_API_KEY`).
 
-### 4. Start PostgreSQL with Docker
-This command starts a PostgreSQL container to persist agent state. Run it from the project's root directory.
-```bash
-# Pull the official PostgreSQL image
-docker pull postgres
-
-# Run the container. Replace {user} and {password} with your desired credentials.
-docker run -itd \
-  -e POSTGRES_USER={user} \
-  -e POSTGRES_PASSWORD={password} \
-  -p 5432:5432 \
-  -v ./data:/var/lib/postgresql/data \
-  --name postgresql \
-  postgres
-```
 
 ## ▶️ Running the Application
 
@@ -63,15 +49,15 @@ These servers provide the specialized tools for each agent.
 
 *   **Core MCP Server:**
     ```bash
-    python -m mcp.core-mcp-server.server --transport sse --host 0.0.0.0 --port 8000
+    python -m mcp.core-mcp-server.server --transport streamable-http --host 0.0.0.0 --port 8000
     ```
 *   **Diagraming MCP Server:**
     ```bash
-    python -m mcp.aws-diagram-mcp-server.server --transport sse --host 0.0.0.0 --port 8001
+    python -m mcp.aws-diagram-mcp-server.server --transport streamable-http --host 0.0.0.0 --port 8001
     ```
 *   **Terraform MCP Server:**
     ```bash
-    python -m mcp.terraform-mcp-server.server --transport sse --host 0.0.0.0 --port 8002
+    python -m mcp.terraform-mcp-server.server --transport streamable-http --host 0.0.0.0 --port 8002
     ```
 
 ### 2. Start the FastAPI Backend
@@ -85,6 +71,6 @@ poetry run uvicorn server:app --host 0.0.0.0 --port 8080 --reload
 This is the user interface for interacting with the copilot.
 ```bash
 # From the `devops-app` directory
-streamlit run supervisor/app.py
+streamlit run app.py
 ```
 You can now access the chat interface at `http://localhost:8501`.
