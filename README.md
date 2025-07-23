@@ -49,13 +49,23 @@ These servers provide the specialized tools for each agent.
 
 *   **Core MCP Server:**
     ```bash
+    cd devops-app/mcp/aws-diagram-mcp-server/
+    ```
+    ```bash
     python -m mcp.core-mcp-server.server --transport streamable-http --host 0.0.0.0 --port 8000
     ```
 *   **Diagraming MCP Server:**
     ```bash
+    cd devops-app/mcp/aws-diagram-mcp-server/
+    ```
+    ```bash
     python -m mcp.aws-diagram-mcp-server.server --transport streamable-http --host 0.0.0.0 --port 8001
     ```
 *   **Terraform MCP Server:**
+    ```bash
+    cd devops-app/mcp/terraform-mcp-server/
+    ```
+
     ```bash
     python -m mcp.terraform-mcp-server.server --transport streamable-http --host 0.0.0.0 --port 8002
     ```
