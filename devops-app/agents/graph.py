@@ -23,9 +23,9 @@ async def create_graph():
     os.makedirs(workspace_dir, exist_ok=True)
 
     # 1. Fetch MCP tools
-    core_tools = await MultiServerMCPClient({"core_mcp": {"transport":"sse","url":"http://localhost:8000/sse"}}).get_tools()
-    diag_tools = await MultiServerMCPClient({"diagram_mcp": {"transport":"sse","url":"http://localhost:8001/sse"}}).get_tools()
-    tf_tools   = await MultiServerMCPClient({"terraform_mcp": {"transport":"sse","url":"http://localhost:8002/sse"}}).get_tools()
+    core_tools = await MultiServerMCPClient({"core_mcp": {"transport":"streamable_http","url":"http://localhost:8000/mcp"}}).get_tools()
+    diag_tools = await MultiServerMCPClient({"diagram_mcp": {"transport":"streamable_http","url":"http://localhost:8001/mcp"}}).get_tools()
+    tf_tools   = await MultiServerMCPClient({"terraform_mcp": {"transport":"streamable_http","url":"http://localhost:8002/mcp"}}).get_tools()
 
     # 2. Build agent functions
     planning_agent  = planning_agent_factory(core_tools)

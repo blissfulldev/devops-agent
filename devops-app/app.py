@@ -1,4 +1,3 @@
-# app.py
 import uuid
 import streamlit as st
 import httpx

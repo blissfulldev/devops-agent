@@ -1,7 +1,7 @@
 import os, json
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
-from supervisor.graph import create_graph
+from agents.graph import create_graph
 from fastapi.responses import StreamingResponse
 import uuid
 import logging
