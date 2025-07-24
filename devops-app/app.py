@@ -2,34 +2,35 @@ import uuid
 import streamlit as st
 import httpx
 import json
+import os
 
 # 1) Page config
 st.set_page_config(page_title="DevOps Copilot", layout="wide")
 st.title("🛠️ DevOps Multi‑Agent Copilot")
 
+# Base URL of your FastAPI server
+API_BASE = "http://localhost:8080"
+
 # 2) Initialize session state
 if "history" not in st.session_state:
     st.session_state.history = []
-# Generate a thread_id once per user session
 if "thread_id" not in st.session_state:
     st.session_state.thread_id = str(uuid.uuid4())
-# You can also set a fixed namespace if you like
 if "checkpoint_ns" not in st.session_state:
     st.session_state.checkpoint_ns = "devops_platform"
-# And a checkpoint_id if needed
 if "checkpoint_id" not in st.session_state:
     st.session_state.checkpoint_id = "main"
 
-# Render chat history from session state
+# Render chat history
 for role, msg in st.session_state.history:
     if role == "assistant_image":
         st.chat_message("assistant").image(msg, caption="Generated Diagram")
     else:
         st.chat_message(role).write(msg)
 
-# 3) Use st.chat_input for a better user experience
+# 3) User input
 if prompt := st.chat_input("What would you like to build?"):
-    # Add user message to history and display it
+    # Display user message
     st.session_state.history.append(("user", prompt))
     st.chat_message("user").write(prompt)
 
@@ -41,50 +42,43 @@ if prompt := st.chat_input("What would you like to build?"):
         "checkpoint_id": st.session_state.checkpoint_id,
     }
 
-    # Display assistant response in a streaming fashion
+    # 4) Stream assistant response
     with st.chat_message("assistant"):
-        # Placeholders for streaming output
-        text_placeholder = st.empty()
-        image_placeholder = st.empty()
+        text_pl = st.empty()
+        img_pl  = st.empty()
         assistant_response_text = ""
         final_image_url = None
 
         try:
-            # 4) Call FastAPI SSE endpoint with an increased timeout
             with httpx.stream(
                 "POST",
-                "http://localhost:8080/stream",
+                f"{API_BASE}/stream",
                 json=payload,
                 timeout=120.0,
             ) as response:
-                response.raise_for_status()  # Raise an exception for bad status codes
-                
-                # Manually process the SSE stream
+                response.raise_for_status()
+
                 for line in response.iter_lines():
                     if not line or not line.startswith("data:"):
                         continue
-                    try:
-                        chunk = json.loads(line.removeprefix("data: "))
-                        print(f"Received chunk: {chunk}")
+                    data = json.loads(line.removeprefix("data: "))
 
-                        # Handle text chunks for streaming response
-                        if text_chunk := chunk.get("text"):
-                            assistant_response_text += text_chunk
-                            text_placeholder.markdown(assistant_response_text + "▌")
+                    # Streamed text
+                    if text_chunk := data.get("text"):
+                        assistant_response_text += text_chunk
+                        text_pl.markdown(assistant_response_text + "▌")
 
-                        # Handle image URL to display the diagram
-                        if image_url := chunk.get("image_url"):
-                            # The server provides a relative path, we need the full URL
-                            final_image_url = f"http://localhost:8080{image_url}"
-                            image_placeholder.image(final_image_url, caption="Generated Diagram")
+                    # Diagram image URL
+                    if rel_url := data.get("image_url"):
+                        # Build full URL (serve path from FastAPI /static)
+                        full_url = f"{API_BASE}{rel_url}"
+                        final_image_url = full_url
+                        img_pl.image(full_url, caption="Generated Diagram")
 
-                    except json.JSONDecodeError:
-                        continue
-            # Final update to remove the cursor and save to history
-            text_placeholder.markdown(assistant_response_text)
-            
-            # Save the final response to history
-            # We save text and image separately to render them correctly
+            # Final render without cursor
+            text_pl.markdown(assistant_response_text)
+
+            # Save to history
             if assistant_response_text:
                 st.session_state.history.append(("assistant", assistant_response_text))
             if final_image_url:

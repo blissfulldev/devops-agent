@@ -4,6 +4,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from agents.graph import create_graph
 from fastapi.responses import StreamingResponse
+from langchain.schema import BaseMessage
 import uuid
 import logging
 
@@ -35,7 +36,7 @@ async def startup_event():
 # CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[os.getenv("FRONTEND_ORIGIN", "http://localhost:3000")],
+    allow_origins=["*"],  # Allow all origins for development
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -64,59 +65,57 @@ async def stream_endpoint(request: Request):
     config = {"configurable": {"thread_id": thread_id}}
 
     async def event_generator():
-        # Flag to identify when the diagram_agent is producing its final answer (the raw Python code)
-        # which should not be streamed to the UI.
-        is_diagram_agent_final_answer_pending = False
         try:
-            # Use astream_events (v2) to get a stream of events from the graph
             async for event in graph.astream_events(graph_input, config=config, version="v2"):
-                # Log every event for debugging purposes
-                logger.debug(f"Event: {event['event']}, Name: {event.get('name')}, Data: {event.get('data')}")
+                logger.debug(
+                    f"Event: {event['event']}, Name: {event.get('name')}, Data keys: {list(event.get('data',{}).keys())}"
+                )
 
-                # Stream LLM tokens for the "thinking" effect
+                # 1) Stream LLM tokens as before
                 if event["event"] == "on_chat_model_stream":
-                    # If this flag is set, we are in the diagram_agent's final answer stream.
-                    # We suppress this stream because it's the raw Python code intended for the next agent.
-                    if event.get("name") == "diagram_agent" and is_diagram_agent_final_answer_pending:
-                        continue  # Skip sending this chunk to the UI
-
                     chunk = event["data"].get("chunk")
-                    if chunk and hasattr(chunk, 'content') and chunk.content:
-                        data_to_send = {"text": chunk.content}
-                        yield f"data: {json.dumps(data_to_send)}\n\n"
-                
-                # When the diagram tool finishes, send the image path to the client
-                if event["event"] == "on_tool_end" and event["name"] == "generate_diagram":
-                    # Set the flag to suppress the agent's next stream, which will be the raw code
-                    is_diagram_agent_final_answer_pending = True
-                    tool_output_str = event["data"].get("output")
-                    tool_output = {}
-                    if tool_output_str:
+                    if chunk and getattr(chunk, "content", None):
+                        yield f"data: {json.dumps({'text': chunk.content})}\n\n"
+
+                # 2) Capture the generate_diagram tool end
+                if event["event"] in ("on_tool_end", "tool_end") and event.get("name") == "generate_diagram":
+                    raw_out = event["data"].get("output")
+
+                    # 2a) If it’s a message‐like object with .content, parse that
+                    if hasattr(raw_out, "content") and isinstance(raw_out.content, str):
                         try:
-                            tool_output = json.loads(tool_output_str)
-                        except (json.JSONDecodeError, TypeError):
-                            logger.warning(f"Could not parse tool output: {tool_output_str}")
+                            out = json.loads(raw_out.content)
+                        except json.JSONDecodeError:
+                            logger.error("Could not parse .content JSON", raw_out.content)
+                            continue
 
-                    if tool_output.get("status") == "success":
-                        image_path = tool_output.get("path")
-                        if image_path and os.path.exists(image_path):
-                            # Convert the absolute filesystem path to a relative URL
-                            # that the client can use.
-                            # We already have the absolute path to workspace
-                            relative_path = os.path.relpath(image_path, WORKSPACE_DIR)
-                            image_url = f"/static/{relative_path.replace(os.sep, '/')}"
-                            
-                            data_to_send = {"image_url": image_url}
-                            yield f"data: {json.dumps(data_to_send)}\n\n"
+                    # 2b) If it’s already a dict, use it directly
+                    elif isinstance(raw_out, dict):
+                        out = raw_out
 
-                            # Also send a user-friendly confirmation message to the UI
-                            confirmation_message = "\n\nDiagram generated successfully."
-                            data_to_send = {"text": confirmation_message}
-                            yield f"data: {json.dumps(data_to_send)}\n\n"
-        except Exception as e:
+                    # 2c) If it’s a plain string, assume it’s JSON
+                    elif isinstance(raw_out, str):
+                        try:
+                            out = json.loads(raw_out)
+                        except json.JSONDecodeError:
+                            logger.error("Could not parse string output JSON", raw_out)
+                            continue
+
+                    else:
+                        logger.error("Unexpected generate_diagram output type", type(raw_out))
+                        continue
+
+                    status = out.get("status")
+                    path   = out.get("path")
+                    logger.debug("Parsed generate_diagram output:", out)
+
+                    if status == "success" and path and os.path.exists(path):
+                        rel = os.path.relpath(path, WORKSPACE_DIR).replace(os.sep, "/")
+                        url = f"/static/{rel}"
+                        yield f"data: {json.dumps({'image_url': url})}\n\n"
+        except Exception:
             logger.exception("🔥 graph.astream_events failed")
-            error_message = {"error": str(e)}
-            yield f"data: {json.dumps(error_message)}\n\n"
+            yield f"data: {json.dumps({'error': 'internal stream error'})}\n\n"
 
     return StreamingResponse(event_generator(), media_type="text/event-stream")
 
