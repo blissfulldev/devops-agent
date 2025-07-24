@@ -93,7 +93,8 @@ Thumbs.db
 # Log files
 *.log
 logs/
-
+workspace/
 # LangChain/LangSmith specific
 # Add any local cache files or databases if created by the libraries.
 # .langchain.db
+test-prompts.md

@@ -20,7 +20,7 @@ psycopg-binary = "^3.2.9"
 langchain-google-genai="^2.1.8"
 fastapi = "^0.115.14"
 streamlit = "^1.47.0"
-langchain_nvidia_ai_endpoints = "^0.3.12"
+langgraph-supervisor = "^0.0.28"
 uvicorn = {extras = ["standard"], version = "^0.35.0"}
 
 [tool.poetry.group.dev.dependencies]
