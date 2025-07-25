@@ -2,7 +2,7 @@ from dotenv import load_dotenv
 from langgraph.prebuilt import create_react_agent
 from langchain_google_genai.chat_models import ChatGoogleGenerativeAI
 from langchain_google_genai import HarmCategory, HarmBlockThreshold
-from langchain_nvidia_ai_endpoints import ChatNVIDIA
+from pydantic import BaseModel
 
 from utils.system_prompts import (
     DIAGRAM_AGENT_SYSTEM_PROMPT,
@@ -26,15 +26,22 @@ llm = ChatGoogleGenerativeAI(
 #   model="meta/llama-3.1-70b-instruct",
 #   truncate="NONE",
 # )
-
+class PlanningStep(BaseModel):
+    prompt: str
+class DiagramStep(BaseModel):
+    code: str
+    image_url: str
+class TerraformStep(BaseModel):
+    project_dir: str
+    valid: bool
 def planning_agent_factory(tools):
-    return create_react_agent(llm, tools=tools, prompt=PLANNING_AGENT_SYSTEM_PROMPT, name="planning_agent")
+    return create_react_agent(llm, tools=tools, prompt=PLANNING_AGENT_SYSTEM_PROMPT, name="planning_agent", response_format = PlanningStep)
 
 def diagram_agent_factory(tools, project_root: str):
     formatted_prompt = DIAGRAM_AGENT_SYSTEM_PROMPT.format(project_root=project_root)
-    return create_react_agent(llm, tools=tools, prompt=formatted_prompt, name="diagram_agent")
+    return create_react_agent(llm, tools=tools, prompt=formatted_prompt, name="diagram_agent", response_format = DiagramStep)
 
 def terraform_agent_factory(tools, project_root: str):
     all_tools = tools + [write_project_to_disk]
     formatted_prompt = TERRAFORM_AGENT_SYSTEM_PROMPT.format(project_root=project_root)
-    return create_react_agent(llm, tools=all_tools, prompt=formatted_prompt, name="terraform_agent")
+    return create_react_agent(llm, tools=all_tools, prompt=formatted_prompt, name="terraform_agent", response_format = TerraformStep)
