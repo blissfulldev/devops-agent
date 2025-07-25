@@ -2,6 +2,8 @@
 
 This project implements a multi-agent system using LangGraph to create a "DevOps Copilot." The system is composed of a supervisor agent that delegates tasks to specialized agents for planning, diagramming, and Terraform operations.
 
+For a detailed walkthrough of the implementation, check out my Substack post: [Building a DevOps Copilot with LangGraph](https://sumantthakur.substack.com/p/from-idea-to-infrastructure-building?r=17szhe).
+
 ## Prerequisites
 
 Before you begin, ensure you have the following installed:
