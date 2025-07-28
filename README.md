@@ -2,6 +2,8 @@
 
 This project implements a multi-agent system using LangGraph to create a "DevOps Copilot." The system is composed of a supervisor agent that delegates tasks to specialized agents for planning, diagramming, and Terraform operations.
 
+For a detailed walkthrough of the implementation, check out my Substack post: [Building a DevOps Copilot with LangGraph](https://sumantthakur.substack.com/p/from-idea-to-infrastructure-building?r=17szhe).
+
 ## Prerequisites
 
 Before you begin, ensure you have the following installed:
@@ -48,11 +50,11 @@ These servers provide the specialized tools for each agent.
 
 *   **Core MCP Server:**
     ```bash
-    cd devops-app/mcp/aws-diagram-mcp-server/
+    cd devops-app/mcp/core-mcp-server/
     poetry install
     ```
     ```bash
-    python -m mcp.core-mcp-server.server --transport streamable-http --host 0.0.0.0 --port 8000
+    python -m awslabs.core-mcp-server.server --transport streamable-http --host 0.0.0.0 --port 8000
     ```
 *   **Diagraming MCP Server:**
     ```bash
@@ -60,7 +62,7 @@ These servers provide the specialized tools for each agent.
     poetry install
     ```
     ```bash
-    python -m mcp.aws-diagram-mcp-server.server --transport streamable-http --host 0.0.0.0 --port 8001
+    python -m awslabs.aws-diagram-mcp-server.server --transport streamable-http --host 0.0.0.0 --port 8001
     ```
 *   **Terraform MCP Server:**
     ```bash
@@ -69,7 +71,7 @@ These servers provide the specialized tools for each agent.
     ```
 
     ```bash
-    python -m mcp.terraform-mcp-server.server --transport streamable-http --host 0.0.0.0 --port 8002
+    python -m awslabs.terraform-mcp-server.server --transport streamable-http --host 0.0.0.0 --port 8002
     ```
 
 ### 2. Start the FastAPI Backend

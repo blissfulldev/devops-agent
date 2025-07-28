@@ -2,7 +2,6 @@ import uuid
 import streamlit as st
 import httpx
 import json
-import os
 
 # 1) Page config
 st.set_page_config(page_title="DevOps Copilot", layout="wide")
@@ -54,7 +53,7 @@ if prompt := st.chat_input("What would you like to build?"):
                 "POST",
                 f"{API_BASE}/stream",
                 json=payload,
-                timeout=120.0,
+                timeout=150.0,
             ) as response:
                 response.raise_for_status()
 
@@ -67,13 +66,15 @@ if prompt := st.chat_input("What would you like to build?"):
                     if text_chunk := data.get("text"):
                         assistant_response_text += text_chunk
                         text_pl.markdown(assistant_response_text + "▌")
+                        # Save each text chunk as a separate message if you want fine-grained order,
+                        # or only when a message is complete (if you have a delimiter).
+                        st.session_state.history.append(("assistant", text_chunk))
 
                     # Diagram image URL
                     if rel_url := data.get("image_url"):
-                        # Build full URL (serve path from FastAPI /static)
                         full_url = f"{API_BASE}{rel_url}"
-                        final_image_url = full_url
                         img_pl.image(full_url, caption="Generated Diagram")
+                        st.session_state.history.append(("assistant_image", full_url))
 
             # Final render without cursor
             text_pl.markdown(assistant_response_text)

@@ -55,7 +55,10 @@ async def stream_endpoint(request: Request):
         return {"error": "Empty input"}
 
     # The input to the graph is a list of messages
-    graph_input = {"messages": [("user", user_text)]}
+    graph_input = {
+        "input": user_text,
+        "messages": [{"role": "user", "content": user_text}]
+    }
 
     # Get the thread_id from the request, or create a new one
     thread_id = body.get("thread_id") or str(uuid.uuid4())

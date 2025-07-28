@@ -4,7 +4,7 @@ from agents.shared_agent import planning_agent_factory, diagram_agent_factory, t
 from langchain_mcp_adapters.client import MultiServerMCPClient
 from utils.system_prompts import SUPERVISOR_AGENT_SYSTEM_PROMPT
 from langgraph_supervisor import create_supervisor 
-from typing import Any, Dict, Literal, Optional, TypedDict, Annotated, List
+from typing import Dict, Literal, Optional, TypedDict, Annotated, List
 from langchain_core.messages import BaseMessage
 from langchain_core.runnables import RunnableLambda
 import os
@@ -20,21 +20,32 @@ class AgentState(TypedDict):
 
 class GraphState(BaseModel):
     input: str
+    messages: Optional[list] = None  # <-- Add this line!
     thread_id: Optional[str] = None
-    checkpoint_ns: Optional[str] = None
-    checkpoint_id: Optional[str] = None
     planning_output: Optional[Dict] = {}
 # --- Dummy Input Cleaner Node ---
-def input_cleaner_node(state: dict) -> dict:
+def input_cleaner_node(state) -> dict:
     print("🔹 [input_cleaner] Received input:", state.input)
     cleaned_input = state.input
-    return {"input": cleaned_input}
+    messages = getattr(state, "messages", None)
+    if not messages:
+        messages = [{"role": "user", "content": cleaned_input}]
+    return {"input": cleaned_input, "messages": messages}
 
+def supervisor_guard_node(state):
+    next_agent = getattr(state, "next_agent", None)
+    allowed = {"planning_agent", "diagram_agent", "terraform_agent", "__end__"}
+    if next_agent not in allowed:
+        print(f"[GUARD] Invalid or missing next_agent '{next_agent}', forcing __end__")
+        return state.copy(update={"next_agent": "__end__"})
+    return state
 
 # --- Dummy Post-Processor Node ---
-def post_processor_node(state: dict) -> dict:
-    print("🔹 [post_processor] Final output:", state.get("messages", []))
-    return state  # In real use case, trigger webhook, CI/CD, etc.
+def post_processor_node(state) -> dict:
+    # Use attribute access for Pydantic models
+    messages = getattr(state, "messages", [])
+    print("🔹 [post_processor] Final output:", messages)
+    return state
 class SupervisorStep(BaseModel):
     next_agent: Literal["planning_agent","diagram_agent","terraform_agent","__end__"]
 async def create_graph():
@@ -65,10 +76,12 @@ async def create_graph():
     builder.add_node("input_cleaner", RunnableLambda(input_cleaner_node))
     builder.add_node("supervisor", supervisor_agent)
     builder.add_node("post_processor", RunnableLambda(post_processor_node))
+    builder.add_node("supervisor_guard", RunnableLambda(supervisor_guard_node))
 
     builder.set_entry_point("input_cleaner")
     builder.add_edge("input_cleaner", "supervisor")
-    builder.add_edge("supervisor", "post_processor")
+    builder.add_edge("supervisor", "supervisor_guard")
+    builder.add_edge("supervisor_guard", "post_processor")
     builder.add_edge("post_processor", END)
     graph = builder.compile(checkpointer=MemorySaver())
     return graph
