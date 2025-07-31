@@ -21,6 +21,7 @@ llm = ChatGoogleGenerativeAI(
         HarmCategory.HARM_CATEGORY_HARASSMENT: HarmBlockThreshold.BLOCK_NONE,
         HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT: HarmBlockThreshold.BLOCK_NONE,
     },
+    stream_mode= "updates",
 )
 # llm = ChatNVIDIA(
 #   model="meta/llama-3.1-70b-instruct",

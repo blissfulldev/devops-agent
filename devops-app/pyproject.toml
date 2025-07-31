@@ -3,13 +3,13 @@ name = "langgraph-multiagent-app"
 version = "0.1.0"
 description = "Self-hosted multi-agent LangGraph application"
 package-mode=false
-authors = ["Your Name <you@example.com>"]
+authors = ["Sumant Thakur sumantkumr77@gmail.com"]
 readme = "README.md"
 
 # Runtime dependencies (main group)
 [tool.poetry.dependencies]
 python = ">=3.12.3, <3.13"
-langgraph = "^0.5.3"
+langgraph = "^0.6.2"
 langchain = "^0.3.26"
 langchain-core = "^0.3.69"
 langchain-mcp-adapters = "^0.1.9"

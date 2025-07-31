@@ -2,92 +2,211 @@ import uuid
 import streamlit as st
 import httpx
 import json
+import logging
+from dataclasses import dataclass
+from typing import Optional
 
-# 1) Page config
+# Add debug logging
+logging.basicConfig(level=logging.DEBUG)
+logger = logging.getLogger("streamlit_app")
+
 st.set_page_config(page_title="DevOps Copilot", layout="wide")
 st.title("🛠️ DevOps Multi‑Agent Copilot")
 
-# Base URL of your FastAPI server
 API_BASE = "http://localhost:8080"
 
-# 2) Initialize session state
+@dataclass
+class MessageChunk:
+    text: str = ""
+    image_url: Optional[str] = None
+    is_complete: bool = False
+
+# Session state initialization with debug
 if "history" not in st.session_state:
     st.session_state.history = []
+    logger.debug("🔄 Initialized empty history")
+else:
+    logger.debug(f"🔄 Existing history has {len(st.session_state.history)} messages")
+
 if "thread_id" not in st.session_state:
     st.session_state.thread_id = str(uuid.uuid4())
-if "checkpoint_ns" not in st.session_state:
-    st.session_state.checkpoint_ns = "devops_platform"
-if "checkpoint_id" not in st.session_state:
-    st.session_state.checkpoint_id = "main"
+    logger.debug(f"🔄 Created new thread_id: {st.session_state.thread_id}")
 
-# Render chat history
-for role, msg in st.session_state.history:
-    if role == "assistant_image":
-        st.chat_message("assistant").image(msg, caption="Generated Diagram")
-    else:
-        st.chat_message(role).write(msg)
+if "awaiting_approval" not in st.session_state:
+    st.session_state.awaiting_approval = False
+if "pending_interrupt" not in st.session_state:
+    st.session_state.pending_interrupt = None
+if "processing" not in st.session_state:
+    st.session_state.processing = False
+if "submitted_approval" not in st.session_state:
+    st.session_state.submitted_approval = False
 
-# 3) User input
-if prompt := st.chat_input("What would you like to build?"):
-    # Display user message
-    st.session_state.history.append(("user", prompt))
-    st.chat_message("user").write(prompt)
+# Debug info in sidebar
+with st.sidebar:
+    st.write("**Debug Info**")
+    st.write(f"Thread ID: {st.session_state.thread_id}")
+    st.write(f"History length: {len(st.session_state.history)}")
+    st.write(f"Awaiting approval: {st.session_state.awaiting_approval}")
+    st.write(f"Submitted approval: {st.session_state.submitted_approval}")
+    st.write(f"Processing: {st.session_state.processing}")
+    if st.session_state.pending_interrupt:
+        st.write(f"Pending interrupt: {st.session_state.pending_interrupt}")
 
-    # Build payload
-    payload = {
-        "input": prompt,
-        "thread_id": st.session_state.thread_id,
-        "checkpoint_ns": st.session_state.checkpoint_ns,
-        "checkpoint_id": st.session_state.checkpoint_id,
-    }
+# Show current history
+logger.debug(f"📜 Rendering {len(st.session_state.history)} history items")
+for i, (role, kind, content) in enumerate(st.session_state.history):
+    logger.debug(f"📜 Item {i}: {role}/{kind}")
+    if kind == "text":
+        st.chat_message(role, avatar="🤖" if role == "assistant" else "🧑‍💻").write(content)
+    elif kind == "image":
+        st.chat_message("assistant", avatar="🤖").image(content, caption="Generated Diagram")
 
-    # 4) Stream assistant response
-    with st.chat_message("assistant"):
-        text_pl = st.empty()
-        img_pl  = st.empty()
-        assistant_response_text = ""
-        final_image_url = None
+# Approval flow
+if st.session_state.awaiting_approval and not st.session_state.submitted_approval:
+    logger.debug("🤔 Showing approval form")
+    interrupt = st.session_state.pending_interrupt
+    
+    # Show the interrupt message prominently
+    st.warning(f"**Action Required:** {interrupt.get('message', 'Unknown interrupt')}")
+    
+    if interrupt.get("requires_input", False):
+        st.info("Please approve or reject to continue:")
+        col1, col2 = st.columns(2)
+        with col1:
+            if st.button("✅ Approve", key="approve_btn", use_container_width=True, type="primary"):
+                logger.debug("✅ User approved")
+                st.session_state.submitted_approval = True
+                st.session_state.approval_decision = True
+                st.rerun()
+        with col2:
+            if st.button("❌ Reject", key="reject_btn", use_container_width=True):
+                logger.debug("❌ User rejected")
+                st.session_state.submitted_approval = True
+                st.session_state.approval_decision = False
+                st.rerun()
 
-        try:
-            with httpx.stream(
-                "POST",
-                f"{API_BASE}/stream",
-                json=payload,
-                timeout=150.0,
-            ) as response:
-                response.raise_for_status()
+# Handle submitted approval/clarification
+if st.session_state.get("submitted_approval", False):
+    if hasattr(st.session_state, "approval_decision"):
+        decision = st.session_state.approval_decision
+        logger.debug(f"🔄 Processing approval decision: {decision}")
+        
+        # Add decision to history
+        icon = "✅" if decision else "❌"
+        status = "Approved" if decision else "Rejected"
+        st.session_state.history.append(("user", "text", f"{icon} {status}"))
+        logger.debug(f"📜 Added decision to history: {icon} {status}")
+        
+        # Reset approval state
+        st.session_state.awaiting_approval = False
+        st.session_state.pending_interrupt = None
+        st.session_state.submitted_approval = False
+        del st.session_state.approval_decision
+        
+        # Call resume endpoint and show response in real-time
+        logger.debug("🔄 Calling /resume endpoint")
+        
+        # Create a new chat message container for the streaming response
+        with st.chat_message("assistant", avatar="🤖"):
+            message_placeholder = st.empty()
+            accumulated_text = ""
+            
+            try:
+                with httpx.stream(
+                    "POST",
+                    f"{API_BASE}/resume",
+                    json={"thread_id": st.session_state.thread_id, "approved": decision},
+                    timeout=120.0,
+                ) as resp:
+                    resp.raise_for_status()
+                    
+                    for line in resp.iter_lines():
+                        if line.startswith("data: "):
+                            data = json.loads(line[6:])
+                            logger.debug(f"📡 Resume received: {data}")
+                            
+                            if data.get("text"):
+                                accumulated_text += data["text"]
+                                # Show streaming text with cursor
+                                message_placeholder.markdown(accumulated_text + "▌")
+                            
+                            if data.get("done"):
+                                # Remove cursor and finalize
+                                message_placeholder.markdown(accumulated_text)
+                                # Add to history
+                                if accumulated_text:
+                                    st.session_state.history.append(("assistant", "text", accumulated_text))
+                                    logger.debug(f"📜 Added resume response to history: {len(accumulated_text)} chars")
+                                break
+                                
+            except Exception as e:
+                logger.error(f"❌ Resume failed: {e}")
+                st.error(f"Resume failed: {e}")
+        
+        st.rerun()
 
-                for line in response.iter_lines():
-                    if not line or not line.startswith("data:"):
-                        continue
-                    data = json.loads(line.removeprefix("data: "))
+# Chat input (only if not awaiting approval)
+if not st.session_state.awaiting_approval:
+    prompt = st.chat_input("What would you like to build?")
+    if prompt:
+        logger.debug(f"💬 User input: {prompt}")
+        st.session_state.history.append(("user", "text", prompt))
+        
+        # Show user message
+        st.chat_message("user", avatar="🧑‍💻").write(prompt)
+        
+        # Create assistant message container for streaming
+        with st.chat_message("assistant", avatar="🤖"):
+            message_placeholder = st.empty()
+            accumulated_text = ""
+            
+            try:
+                with httpx.stream(
+                    "POST",
+                    f"{API_BASE}/stream",
+                    json={"input": prompt, "thread_id": st.session_state.thread_id},
+                    timeout=120.0,
+                ) as resp:
+                    resp.raise_for_status()
+                    
+                    for line in resp.iter_lines():
+                        if line.startswith("data: "):
+                            data = json.loads(line[6:])
+                            logger.debug(f"📡 Received: {data}")
+                            
+                            if "interrupt" in data:
+                                logger.debug("🤔 Interrupt received, setting approval state")
+                                st.session_state.pending_interrupt = data["interrupt"]
+                                st.session_state.awaiting_approval = True
+                                st.session_state.submitted_approval = False
+                                
+                                # Finalize current message before interrupt
+                                if accumulated_text:
+                                    message_placeholder.markdown(accumulated_text)
+                                    st.session_state.history.append(("assistant", "text", accumulated_text))
+                                
+                                st.rerun()
+                                break
+                            
+                            if data.get("text"):
+                                accumulated_text += data["text"]
+                                # Show streaming text with cursor
+                                message_placeholder.markdown(accumulated_text + "▌")
+                            
+                            if data.get("done"):
+                                # Remove cursor and finalize
+                                message_placeholder.markdown(accumulated_text)
+                                if accumulated_text:
+                                    st.session_state.history.append(("assistant", "text", accumulated_text))
+                                    logger.debug(f"📜 Added response to history: {len(accumulated_text)} chars")
+                                break
+                                
+            except Exception as e:
+                logger.error(f"❌ Stream failed: {e}")
+                st.error(f"Stream failed: {e}")
 
-                    # Streamed text
-                    if text_chunk := data.get("text"):
-                        assistant_response_text += text_chunk
-                        text_pl.markdown(assistant_response_text + "▌")
-                        # Save each text chunk as a separate message if you want fine-grained order,
-                        # or only when a message is complete (if you have a delimiter).
-                        st.session_state.history.append(("assistant", text_chunk))
-
-                    # Diagram image URL
-                    if rel_url := data.get("image_url"):
-                        full_url = f"{API_BASE}{rel_url}"
-                        img_pl.image(full_url, caption="Generated Diagram")
-                        st.session_state.history.append(("assistant_image", full_url))
-
-            # Final render without cursor
-            text_pl.markdown(assistant_response_text)
-
-            # Save to history
-            if assistant_response_text:
-                st.session_state.history.append(("assistant", assistant_response_text))
-            if final_image_url:
-                st.session_state.history.append(("assistant_image", final_image_url))
-
-        except httpx.ReadTimeout:
-            st.error("The request timed out. The agent system is taking too long to respond.")
-        except httpx.HTTPStatusError as e:
-            st.error(f"An HTTP error occurred: {e.response.status_code} - {e.response.text}")
-        except Exception as e:
-            st.error(f"An unexpected error occurred: {e}")
+# New conversation button
+if st.button("🆕 Start New Conversation"):
+    logger.debug("🔄 Starting new conversation")
+    st.session_state.clear()
+    st.rerun()
