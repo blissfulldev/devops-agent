@@ -1,5 +1,5 @@
 from dotenv import load_dotenv
-from langgraph.prebuilt import create_react_agent
+from agents.custom_agent import create_react_agent
 from langchain_google_genai.chat_models import ChatGoogleGenerativeAI
 
 from utils.system_prompts import (
@@ -11,7 +11,7 @@ from tools.write_project_to_disk import write_project_to_disk
 
 
 load_dotenv()
-llm = ChatGoogleGenerativeAI(model="gemini-2.5-pro")
+llm = ChatGoogleGenerativeAI(model="gemini-1.5-pro")
 
 def planning_agent_factory(tools):
     return create_react_agent(llm, tools=tools, prompt=PLANNING_AGENT_SYSTEM_PROMPT, name="planning_agent")
