@@ -1,5 +1,4 @@
 from dotenv import load_dotenv
-from agents.custom_agent import create_react_agent
 from langchain_google_genai.chat_models import ChatGoogleGenerativeAI
 
 from utils.system_prompts import (
@@ -8,6 +7,7 @@ from utils.system_prompts import (
     TERRAFORM_AGENT_SYSTEM_PROMPT,
 )
 from tools.write_project_to_disk import write_project_to_disk
+from agents.custom_agent import create_react_agent
 
 
 load_dotenv()
