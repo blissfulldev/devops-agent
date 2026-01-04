@@ -1,0 +1,75 @@
+name: Provision Infrastructure
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '**/*.tf'
+      - '.github/workflows/terraform-provision.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+env:
+  TF_IN_AUTOMATION: true
+  TF_CLI_ARGS_plan: -compact-warnings
+  TF_CLI_ARGS_apply: -auto-approve
+
+jobs:
+  terraform:
+    name: Deploy Terraform
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        environment:
+          - dev
+    env:
+      TF_WORKSPACE: ${{ matrix.environment }}
+      AWS_REGION: ${{ vars.AWS_REGION || 'us-east-1' }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_IAC_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+
+      - name: Initialise
+        run: terraform -chdir=environments/${{ matrix.environment }} init
+
+      - name: Validate
+        run: terraform -chdir=environments/${{ matrix.environment }} validate
+
+      - name: Plan
+        run: terraform -chdir=environments/${{ matrix.environment }} plan
+
+      - name: Apply
+        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+        run: terraform -chdir=environments/${{ matrix.environment }} apply
+
+      - name: Artefact Summary
+        if: always()
+        run: |
+          echo '## Terraform Deployment Summary' >> $GITHUB_STEP_SUMMARY
+          echo "- Project: 737e021a-efa1-4a12-81ca-aab690d807e3" >> $GITHUB_STEP_SUMMARY
+          echo "- Session: b1b49971-a513-438a-a153-e4905fcd9f94" >> $GITHUB_STEP_SUMMARY
+          echo "- Environment: ${{ matrix.environment }}" >> $GITHUB_STEP_SUMMARY
+          echo '### Modules' >> $GITHUB_STEP_SUMMARY
+          echo "- alb" >> $GITHUB_STEP_SUMMARY
+          echo "- alb_sg" >> $GITHUB_STEP_SUMMARY
+          echo "- amplify" >> $GITHUB_STEP_SUMMARY
+          echo "- app_sg" >> $GITHUB_STEP_SUMMARY
+          echo "- asg" >> $GITHUB_STEP_SUMMARY
+          echo "- cloudfront" >> $GITHUB_STEP_SUMMARY
+          echo "- db_sg" >> $GITHUB_STEP_SUMMARY
+          echo "- rds" >> $GITHUB_STEP_SUMMARY
+          echo "- s3_media" >> $GITHUB_STEP_SUMMARY
+          echo "- vpc" >> $GITHUB_STEP_SUMMARY
