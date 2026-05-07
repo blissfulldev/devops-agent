@@ -1,100 +1,29 @@
-# Byte-compiled / optimized / DLL files
-__pycache__/
-*.py[cod]
-*$py.class
+# Local .terraform directories
+**/.terraform/*
 
-# C extensions
-*.so
+# Terraform state files
+*.tfstate
+*.tfstate.*
+*.tfstate.backup
 
-# Distribution / packaging
-.Python
-build/
-develop-eggs/
-dist/
-downloads/
-eggs/
-.eggs/
-lib/
-lib64/
-parts/
-sdist/
-var/
-wheels/
-pip-wheel-metadata/
-share/python-wheels/
-*.egg-info/
-.installed.cfg
-*.egg
-MANIFEST
+# Crash log files
+crash.log
+crash.*.log
 
-# PyInstaller
-#  Usually these files are written by a python script from a template
-#  before PyInstaller builds the exe, so as to inject date/other infos into it.
-*.manifest
-*.spec
+# Sensitive variable files
+*.tfvars
+*.tfvars.json
+!terraform.tfvars.json
 
-# Installer logs
-pip-log.txt
-pip-delete-this-directory.txt
+# Override files — used for local backend, not for CI
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
 
-# Unit test / coverage reports
-htmlcov/
-.tox/
-.nox/
-.coverage
-.coverage.*
-.cache
-nosetests.xml
-coverage.xml
-*.cover
-*.py,cover
-.hypothesis/
-.pytest_cache/
-.ruff_cache/
+# Terraform lock file (commit this if you want reproducible provider versions)
+# .terraform.lock.hcl
 
-# Environments
-.env
-.venv
-env/
-venv/
-ENV/
-env.bak/
-venv.bak/
-
-# mypy
-.mypy_cache/
-.dmypy.json
-dmypy.json
-
-# Jupyter Notebook
-.ipynb_checkpoints
-
-# VS Code
-.vscode/
-!.vscode/settings.json
-!.vscode/tasks.json
-!.vscode/launch.json
-!.vscode/extensions.json
-
-# IDEs
-.idea/
-*.swp
-*.swo
-
-# OS-generated files
-.DS_Store
-Thumbs.db
-
-# Secrets
-*.env
-.env.*
-!/.env.example
-
-# Log files
-*.log
-logs/
-workspace/
-# LangChain/LangSmith specific
-# Add any local cache files or databases if created by the libraries.
-# .langchain.db
-test-prompts.md
+# Terraform plan output
+*.tfplan
+tfplan

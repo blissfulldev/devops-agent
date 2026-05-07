@@ -1,90 +1,122 @@
-# LangGraph Multi-Agent DevOps App
+# Terraform Infrastructure
 
-This project implements a multi-agent system using LangGraph to create a "DevOps Copilot." The system is composed of a supervisor agent that delegates tasks to specialized agents for planning, diagramming, and Terraform operations.
+## Requirements
 
-For a detailed walkthrough of the implementation, check out my Substack post: [Building a DevOps Copilot with LangGraph](https://sumantthakur.substack.com/p/from-idea-to-infrastructure-building?r=17szhe).
+The following requirements are needed by this module:
 
-## Prerequisites
+- [terraform](#requirement_terraform) (>= 1.0)
 
-Before you begin, ensure you have the following installed:
-- Python 3.10+
-- Install GraphViz https://www.graphviz.org/
+- [aws](#requirement_aws) (~> 5.0)
 
-## 🚀 Getting Started
+## Providers
 
-Follow these steps to set up and run the project locally.
+The following providers are used by this module:
 
-### 1. Clone the Repository
+- [aws](#provider_aws) (~> 5.0)
+
+## Modules
+
+No modules.
+
+## Resources
+
+The following resources are used by this module:
+
+- [aws_api_gateway_rest_api.main](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/api_gateway_rest_api) (resource)
+- [aws_cloudwatch_log_group.ecs](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/cloudwatch_log_group) (resource)
+- [aws_db_subnet_group.main](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/db_subnet_group) (resource)
+- [aws_ecs_cluster.main](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/ecs_cluster) (resource)
+- [aws_ecs_service.main](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/ecs_service) (resource)
+- [aws_ecs_task_definition.main](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/ecs_task_definition) (resource)
+- [aws_eip.nat](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/eip) (resource)
+- [aws_iam_role.ecs_exec](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/iam_role) (resource)
+- [aws_iam_role.ecs_task](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/iam_role) (resource)
+- [aws_iam_role_policy_attachment.ecs_exec_policy](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/iam_role_policy_attachment) (resource)
+- [aws_internet_gateway.main](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/internet_gateway) (resource)
+- [aws_lb.main](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/lb) (resource)
+- [aws_lb_listener.http](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/lb_listener) (resource)
+- [aws_lb_target_group.main](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/lb_target_group) (resource)
+- [aws_nat_gateway.main](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/nat_gateway) (resource)
+- [aws_rds_cluster.main](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/rds_cluster) (resource)
+- [aws_rds_cluster_instance.instance_1](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/rds_cluster_instance) (resource)
+- [aws_route.private_nat](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/route) (resource)
+- [aws_route_table.private](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/route_table) (resource)
+- [aws_route_table_association.private_a](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/route_table_association) (resource)
+- [aws_route_table_association.private_b](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/route_table_association) (resource)
+- [aws_security_group.alb](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/security_group) (resource)
+- [aws_security_group.ecs](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/security_group) (resource)
+- [aws_security_group.rds](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/security_group) (resource)
+- [aws_subnet.private_a](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/subnet) (resource)
+- [aws_subnet.private_b](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/subnet) (resource)
+- [aws_subnet.public_a](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/subnet) (resource)
+- [aws_vpc.main](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/vpc) (resource)
+- [aws_vpc_security_group_ingress_rule.ecs_ingress](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/vpc_security_group_ingress_rule) (resource)
+- [aws_vpc_security_group_ingress_rule.rds_ingress](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/vpc_security_group_ingress_rule) (resource)
+
+## Required Inputs
+
+No required inputs.
+
+## Optional Inputs
+
+The following input variables are optional (have default values):
+
+### [aws_region](#input_aws_region)
+
+Description: The AWS region to deploy resources into
+
+Type: `string`
+
+Default: `"us-east-1"`
+
+### [environment](#input_environment)
+
+Description: The environment name (e.g. dev, staging, prod)
+
+Type: `string`
+
+Default: `"production"`
+
+### [project_name](#input_project_name)
+
+Description: The name of the project
+
+Type: `string`
+
+Default: `"flurit-ai"`
+
+## Outputs
+
+The following outputs are exported:
+
+### [alb_dns_name](#output_alb_dns_name)
+
+Description: The DNS name of the Application Load Balancer
+
+### [api_gateway_id](#output_api_gateway_id)
+
+Description: The ID of the API Gateway
+
+### [ecs_cluster_name](#output_ecs_cluster_name)
+
+Description: The name of the ECS cluster
+
+### [rds_cluster_endpoint](#output_rds_cluster_endpoint)
+
+Description: The cluster endpoint for the RDS Aurora cluster
+
+### [rds_cluster_reader_endpoint](#output_rds_cluster_reader_endpoint)
+
+Description: The cluster reader endpoint for the RDS Aurora cluster
+
+### [vpc_id](#output_vpc_id)
+
+Description: The ID of the VPC
+
+## Usage
+
 ```bash
-git clone git@github.com:blissfulldev/devops-agent.git
-cd DevOps-Platform
+terraform init
+terraform plan
+terraform apply
 ```
-
-### 2. Set Up the Python Environment
-```bash
-# Create and activate a virtual environment
-python3 -m venv venv
-source venv/bin/activate
-
-# Navigate to the application directory and install dependencies
-cd devops-app
-pip install poetry
-poetry install
-```
-
-### 3. Configure Environment Variables
-Create a `.env` file from the example template and add your API keys.
-```bash
-# Make sure you are in the `devops-app` directory
-cp env.example .env
-```
-Now, open the `.env` file and add the necessary secret keys (e.g., `GOOGLE_API_KEY`).
-
-
-## ▶️ Running the Application
-
-The application consists of several services that must be run simultaneously. It is highly recommended to **open a new terminal for each step and activate venv in every terminal before running any command**.
-
-### 1. Start the MCP Servers
-These servers provide the specialized tools for each agent.
-
-*   **Core MCP Server:**
-    ```bash
-    cd devops-app/mcp/core-mcp-server/
-    poetry install
-    ```
-    ```bash
-    python -m awslabs.core-mcp-server.server --transport streamable-http --host 0.0.0.0 --port 8000
-    ```
-*   **Diagraming MCP Server:**
-    ```bash
-    cd devops-app/mcp/aws-diagram-mcp-server/
-    poetry install
-    ```
-    ```bash
-    python -m awslabs.aws-diagram-mcp-server.server --transport streamable-http --host 0.0.0.0 --port 8001
-    ```
-*   **Terraform MCP Server:**
-    ```bash
-    cd devops-app/mcp/terraform-mcp-server/
-    poetry install
-    ```
-
-    ```bash
-    python -m awslabs.terraform-mcp-server.server --transport streamable-http --host 0.0.0.0 --port 8002
-    ```
-
-### 2. Start the FastAPI Backend
-This server orchestrates the agents and provides the streaming API.
-```bash
-# From the `devops-app` directory
-poetry run uvicorn server:app --host 0.0.0.0 --port 8080 --reload
-```
-
-### 3. Start the Streamlit Frontend
-This is the user interface for interacting with the copilot.
-```bash
-# From the `devops-app` directory
-streamlit run app.py
-```
-You can now access the chat interface at `http://localhost:8501`.
