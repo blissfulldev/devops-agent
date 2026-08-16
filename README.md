@@ -1,3 +1,5 @@
+
+
 # LangGraph Multi-Agent DevOps App
 
 This project implements a multi-agent system using LangGraph to create a "DevOps Copilot." The system is composed of a supervisor agent that delegates tasks to specialized agents for planning, diagramming, and Terraform operations.
@@ -7,7 +9,7 @@ For a detailed walkthrough of the implementation, check out my Substack post: [B
 ## Prerequisites
 
 Before you begin, ensure you have the following installed:
-- Python 3.10+
+- Python 3.12.3+
 - Install GraphViz https://www.graphviz.org/
 
 ## 🚀 Getting Started
